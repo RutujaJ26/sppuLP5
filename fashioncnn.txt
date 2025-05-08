@@ -1,0 +1,66 @@
+import pandas as pd
+import numpy as np
+train_df=pd.read_csv('fashion-mnist_train.csv')
+test_df=pd.read_csv('fashion-mnist_test.csv')
+train_df
+
+classnames=['T-shirt/top','Trouser','Pullover','Dress','Coat','Sandal','Shirt','Sneaker','Bag','Ankle boot']
+
+x_train=train_df.drop(columns=['label'])
+x_test=test_df.drop(columns=['label'])
+y_train=train_df['label']
+y_test=test_df['label']
+x_train=x_train.to_numpy().reshape(x_train.shape[0],28,28,1).astype('float32') / 255.0
+x_test=x_test.to_numpy().reshape(x_test.shape[0],28,28,1).astype('float32') / 255.0
+
+import matplotlib.pyplot as plt
+for i in range(25):
+    plt.subplot(5,5,i+1)
+    plt.xticks([]),plt.yticks([]),plt.grid(False)
+    plt.imshow(x_train[i],cmap='binary')
+    plt.title(classnames[y_train[i]])
+plt.tight_layout()
+plt.show()
+
+import tensorflow
+from tensorflow import keras
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Conv2D,MaxPooling2D,BatchNormalization,Flatten,Dropout,Dense
+
+model=Sequential()
+model.add(Conv2D(32,(3,3),activation='relu',padding='same',input_shape=(28,28,1)))
+model.add(BatchNormalization())
+
+model.add(Conv2D(64,(3,3),activation='relu',padding='same'))
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2,2)))
+model.add(Dropout(0.25))
+
+model.add(Conv2D(128,(3,3),activation='relu',padding='same'))
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2,2)))
+model.add(Dropout(0.25))
+
+model.add(Flatten())
+model.add(Dense(128,activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(10,activation='softmax'))
+
+model.compile(optimizer='adam',loss='sparse_categorical_crossentropy',metrics=['accuracy'])
+model.summary()
+model.fit(x_train,y_train,epochs=10,batch_size=500,validation_split=0.2)
+
+model.evaluate(x_test,y_test)
+y_pred=model.predict(x_test).argmax(axis=-1)
+
+plt.figure(figsize=(8, 8))
+for i in range(25):
+    plt.subplot(5, 5, i+1)
+    plt.xticks([]), plt.yticks([]), plt.grid(False)
+    plt.imshow(x_test[i], cmap='binary')
+    plt.title(f"Pred: {classnames[y_pred[i]]}")
+plt.tight_layout()
+plt.show()
+
+from sklearn.metrics import classification_report
+print(classification_report(y_test,y_pred,target_names=classnames))

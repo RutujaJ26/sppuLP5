@@ -1,0 +1,99 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda.h>
+#include <time.h>
+#include <math.h>
+
+#define TOLERANCE 1e-5
+
+_global_ void vectorAdd(float *A, float *B, float *C, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) {
+        C[i] = A[i] + B[i];
+    }
+}
+
+float calculateSpeedup(float cpu_time, float gpu_time) {
+    return cpu_time / gpu_time;
+}
+
+int main() {
+    int N;
+    printf("Enter number of elements (e.g., 1000000): ");
+    scanf("%d", &N);
+
+    size_t size = N * sizeof(float);
+    float h_A = (float)malloc(size);
+    float h_B = (float)malloc(size);
+    float h_C = (float)malloc(size);
+    float h_C_gpu = (float)malloc(size);
+    float *d_A, *d_B, *d_C;
+
+    float cpu_time, gpu_time;
+    cudaEvent_t start, stop;
+
+    // Initialize host arrays with random values
+    srand(time(NULL));
+    for (int i = 0; i < N; i++) {
+        h_A[i] = rand() / (float)RAND_MAX;
+        h_B[i] = rand() / (float)RAND_MAX;
+    }
+
+    // CPU computation
+    clock_t cpu_start = clock();
+    for (int i = 0; i < N; i++) {
+        h_C[i] = h_A[i] + h_B[i];
+    }
+    clock_t cpu_end = clock();
+    cpu_time = ((float)(cpu_end - cpu_start)) / CLOCKS_PER_SEC;
+    printf("CPU Time: %f seconds\n", cpu_time);
+
+    // Allocate device memory
+    cudaMalloc((void**)&d_A, size);
+    cudaMalloc((void**)&d_B, size);
+    cudaMalloc((void**)&d_C, size);
+
+    // Copy data to device
+    cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
+
+    // CUDA events for timing
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+
+    // Kernel launch
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
+    vectorAdd<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, N);
+
+    // Finish timing
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&gpu_time, start, stop);
+    gpu_time /= 1000; // Convert ms to seconds
+
+    printf("GPU Time: %f seconds\n", gpu_time);
+    printf("Speedup Factor: %f\n", calculateSpeedup(cpu_time, gpu_time));
+
+    // Copy result back to host
+    cudaMemcpy(h_C_gpu, d_C, size, cudaMemcpyDeviceToHost);
+
+    // Validate results
+    int isValid = 1;
+    for (int i = 0; i < N; i++) {
+        if (fabs(h_C[i] - h_C_gpu[i]) > TOLERANCE) {
+            isValid = 0;
+            printf("Mismatch at index %d: CPU = %f, GPU = %f\n", i, h_C[i], h_C_gpu[i]);
+            break;
+        }
+    }
+    printf("Verification: %s\n", isValid ? "TRUE" : "FALSE");
+
+    // Cleanup
+    free(h_A); free(h_B); free(h_C); free(h_C_gpu);
+    cudaFree(d_A); cudaFree(d_B); cudaFree(d_C);
+    cudaEventDestroy(start); cudaEventDestroy(stop);
+
+    return 0;
+}

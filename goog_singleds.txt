@@ -1,0 +1,76 @@
+import pandas as pd
+df = pd.read_csv('GOOGL.csv')
+train = df[df['Date']<'2022-01-01']
+test = df[df['Date']>='2022-01-01']
+
+temp=df[df['Date']<'2022-01-01']
+train = train.drop(columns=['Date','Adj Close'])
+train
+
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()
+train = sc.fit_transform(train)
+sc.scale_
+x = []
+y = []
+
+for i in range(60,train.shape[0]):
+  x.append(train[i-60:i])
+  y.append(train[i])
+import numpy as np
+x= np.array(x)
+y= np.array(y)
+
+import tensorflow
+from tensorflow import keras
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Dense,SimpleRNN,Dropout,LSTM
+
+model = Sequential()
+
+model.add(LSTM(100, activation='tanh',return_sequences=True, input_shape=(60,5)))
+model.add(Dropout(0.2))
+
+model.add(LSTM(100,activation='tanh'))
+model.add(Dropout(0.2))
+
+model.add(Dense(1))
+model.compile(optimizer='adam',loss='mse')
+
+model.fit(x,y,epochs=20,batch_size=50,validation_split=0.2)
+
+past = temp.tail(60)
+test.shape
+
+test = pd.concat([past,test],ignore_index=True)
+test = test.drop(columns=['Date','Adj Close'])
+test = sc.fit_transform(test)
+
+x_test = []
+y_test = []
+
+for i in range(60,test.shape[0]):
+  x_test.append(test[i-60:i])
+  y_test.append(test[i])
+
+x_test = np.array(x_test)
+y_test = np.array(y_test)
+pred = model.predict(x_test)
+
+sc.scale_
+scale = 1/6.06198895e+02
+
+pred= pred*scale
+y_test = y_test*scale*
+
+import matplotlib.pyplot as plt
+y_test
+
+plt.plot(y_test, color = 'red', label = 'Real price')
+plt.plot(pred, color = 'blue', label = 'Predicted price')
+
+plt.title('Google Stock price prediction')
+plt.xlabel('Time')
+plt.ylabel('Price')
+plt.legend()
+plt.show()
