@@ -1,0 +1,52 @@
+# Import necessary libraries
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from tensorflow import keras
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
+
+# Load the dataset
+df = pd.read_csv('IMDB_Dataset.csv')
+
+# Encode sentiment labels (positive/negative to 1/0)
+le = LabelEncoder()
+df['sentiment'] = le.fit_transform(df['sentiment'])
+
+# Convert text to numeric using CountVectorizer (Bag of Words)
+cv = CountVectorizer()
+x = cv.fit_transform(df['review'])
+y = df['sentiment']
+
+# Split the data into training and testing sets
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=1)
+
+# Build the neural network model
+model = Sequential()
+model.add(keras.layers.Input(shape=(x_train.shape[1],), sparse=True))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(28, activation='relu'))
+model.add(Dense(1, activation='sigmoid'))
+
+# Compile the model
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# Train the model
+history = model.fit(x_train, y_train, batch_size=512, epochs=10, validation_split=0.2)
+
+# Evaluate the model
+loss, accuracy = model.evaluate(x_test, y_test)
+print("Test Loss:", loss)
+print("Test Accuracy:", accuracy)
+
+# Predict and display results
+y_pred_probs = model.predict(x_test)
+y_pred = (y_pred_probs > 0.5).astype(int)
+
+# Confusion Matrix and Classification Report
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d')
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
